@@ -22,7 +22,9 @@ resource "aws_s3_bucket_lifecycle_configuration" "lifecycle" {
   rule {
     id = "to-IA"
 
-    filter {}
+    filter {
+      object_size_greater_than = 20000000
+    }
 
     transition {
       days          = 30
