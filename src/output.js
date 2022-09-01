@@ -108,7 +108,7 @@ exports.handler =  async function(event, context) {
       // upload txt file back to s3
       ret.push(s3.putObject({
 	Bucket: process.env.BUCKET,
-	Key: "output/transcriptions/" + key.split("/").pop().replace(/\.json/g, ".txt"),
+	Key: key.replace(/output/g, "transcriptions").replace(/\.json/g, ".txt"),
 	Body: Buffer.from(tsString)
       }).promise());
     }
