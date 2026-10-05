@@ -59,7 +59,7 @@ resource "aws_lambda_function" "input" {
   function_name = "autotranscribe-input"
   role          = aws_iam_role.iam_for_lambda.arn
   handler       = "input.handler"
-  runtime       = "nodejs14.x"
+  runtime       = "nodejs24.x"
   timeout       = 60
   environment {
     variables = {
@@ -83,7 +83,7 @@ resource "aws_lambda_function" "output" {
   function_name = "autotranscribe-output"
   role          = aws_iam_role.iam_for_lambda.arn
   handler       = "output.handler"
-  runtime       = "nodejs14.x"
+  runtime       = "nodejs24.x"
   memory_size   = 256
   timeout       = 60
   environment {

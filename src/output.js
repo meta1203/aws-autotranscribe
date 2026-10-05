@@ -1,55 +1,51 @@
 const fs = require("fs");
-const AWS = require('aws-sdk');
-const s3 = new AWS.S3();
+const { S3Client, GetObjectCommand, PutObjectCommand } = require('@aws-sdk/client-s3');
+const s3 = new S3Client({});
 
 function objToText(tobj) {
-  let sum_string = "";
-  
-  if (tobj.results.speaker_labels) {
-    let c_speaker = "";
-    let pos = 0;
-    for (const label of tobj.results.speaker_labels.segments) {
-      if (label.speaker_label != c_speaker) {
-	c_speaker = label.speaker_label;
-	let st = parseFloat(label.start_time);
-	let timestamp = "[" + String(Math.floor(st / 3600)) + ":" +
-	    String(Math.floor(st / 60) % 60).padStart(2, "0") + ":" +
-	    String(Math.round(st % 60)).padStart(2, "0") + "]";
-	sum_string = sum_string + `\n${timestamp} ${c_speaker}:`;
-      }
-      
-      while (true) {
-	let item = tobj.results.items[pos];
+    let sum_string = "";
 
-	if (!item) {
-	  console.log("not @ " + pos);
-	  break;
-	}
-	
-	if (item.start_time && parseFloat(label.end_time) < parseFloat(item.start_time))
-	  break;
-	
-	if (item.alternatives[0].content == ","
-	    || item.alternatives[0].content == ".") {
-	  sum_string = sum_string + item.alternatives[0].content;
-	} else {
-	  sum_string = sum_string + " " + item.alternatives[0].content;
-	}
+    if (tobj.results.speaker_labels) {
+        let c_speaker = "";
+        let pos = 0;
+        for (const label of tobj.results.speaker_labels.segments) {
+            if (label.speaker_label != c_speaker) {
+                c_speaker = label.speaker_label;
+                let st = parseFloat(label.start_time);
+                let timestamp = `[${Math.floor(st / 3600)}:${String(Math.floor(st / 60) % 60).padStart(2, "0")}:${String(Math.round(st % 60)).padStart(2, "0")}]`;
+                sum_string = sum_string + `\n${timestamp} ${c_speaker}:`;
+            }
 
-	pos++;
-      }
+            while (true) {
+                let item = tobj.results.items[pos];
+
+                if (!item) {
+                    console.log("not @ " + pos);
+                    break;
+                }
+
+                if (item.start_time && parseFloat(label.end_time) < parseFloat(item.start_time)) break;
+
+                if (item.alternatives[0].content == "," || item.alternatives[0].content == ".") {
+                    sum_string = sum_string + item.alternatives[0].content;
+                } else {
+                    sum_string = sum_string + " " + item.alternatives[0].content;
+                }
+
+                pos++;
+            }
+        }
+    } else {
+        for (const item of tobj.results.items) {
+            if (item.alternatives[0].content == ".") {
+                sum_string = sum_string + ".\n";
+            } else {
+                sum_string = sum_string + " " + item.alternatives[0].content;
+            }
+        }
     }
-  } else {
-    for (const item of tobj.results.items) {
-      if (item.alternatives[0].content == '.') {
-	sum_string = sum_string + ".\n";
-      } else {
-	sum_string = sum_string + " " + item.alternatives[0].content;
-      }
-    }
-  }
 
-  return sum_string;
+    return sum_string;
 }
 
 //   PAD NUMBER WITH ZEROES
@@ -98,19 +94,19 @@ exports.handler =  async function(event, context) {
       const bucket = r.s3.bucket.name;
       const key = r.s3.object.key;
       // download json
-      const obj = await s3.getObject({
-	Bucket: bucket,
-	Key: key
-      }).promise();
+      const obj = await s3.send(new GetObjectCommand({
+                Bucket: bucket,
+                Key: key
+      }));
       // convert json file to txt file
-      const tsResults = JSON.parse(obj.Body.toString());
+      const tsResults = JSON.parse(await obj.Body.transformToString());
       const tsString = objToText(tsResults);
       // upload txt file back to s3
-      ret.push(s3.putObject({
-	Bucket: process.env.BUCKET,
-	Key: key.replace(/output/g, "transcriptions").replace(/\.json/g, ".txt"),
-	Body: Buffer.from(tsString)
-      }).promise());
+      ret.push(s3.send(new PutObjectCommand({
+                Bucket: process.env.BUCKET,
+                Key: key.replace(/output/g, "transcriptions").replace(/\.json/g, ".txt"),
+                Body: Buffer.from(tsString)
+      })));
     }
     // return a sum Promise
     return Promise.all(ret);
