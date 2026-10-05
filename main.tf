@@ -1,12 +1,31 @@
+terraform {
+  required_version = ">= 1.13.1"
+
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = ">= 6.0"
+    }
+    archive = {
+      source  = "hashicorp/archive"
+      version = ">= 2.4"
+    }
+    random = {
+      source  = "hashicorp/random"
+      version = ">= 3.6"
+    }
+  }
+}
+
 provider "aws" {
   region = "us-east-2"
 }
 
 resource "random_string" "bucket" {
-  length = 8
-  lower = true
-  upper = false
-  number = true
+  length  = 8
+  lower   = true
+  upper   = false
+  numeric = true
   special = false
 }
 
@@ -56,11 +75,11 @@ resource "aws_lambda_permission" "output_allow_bucket" {
 resource "aws_lambda_function" "input" {
   filename         = data.archive_file.input-lambda.output_path
   source_code_hash = data.archive_file.input-lambda.output_base64sha256
-  function_name = "autotranscribe-input"
-  role          = aws_iam_role.iam_for_lambda.arn
-  handler       = "input.handler"
-  runtime       = "nodejs24.x"
-  timeout       = 60
+  function_name    = "autotranscribe-input"
+  role             = aws_iam_role.iam_for_lambda.arn
+  handler          = "input.handler"
+  runtime          = "nodejs24.x"
+  timeout          = 60
   environment {
     variables = {
       TRANSCRIBE_ROLE = aws_iam_role.iam_for_transcribe.arn
@@ -78,14 +97,14 @@ data "archive_file" "input-lambda" {
 }
 
 resource "aws_lambda_function" "output" {
-  filename      = data.archive_file.output-lambda.output_path
+  filename         = data.archive_file.output-lambda.output_path
   source_code_hash = data.archive_file.output-lambda.output_base64sha256
-  function_name = "autotranscribe-output"
-  role          = aws_iam_role.iam_for_lambda.arn
-  handler       = "output.handler"
-  runtime       = "nodejs24.x"
-  memory_size   = 256
-  timeout       = 60
+  function_name    = "autotranscribe-output"
+  role             = aws_iam_role.iam_for_lambda.arn
+  handler          = "output.handler"
+  runtime          = "nodejs24.x"
+  memory_size      = 256
+  timeout          = 60
   environment {
     variables = {
       BUCKET = aws_s3_bucket.bucket.id
@@ -143,19 +162,19 @@ EOF
 }
 
 resource "aws_iam_policy_attachment" "s3" {
-  name = "autotranscribe-lambda-s3"
+  name       = "autotranscribe-lambda-s3"
   roles      = [aws_iam_role.iam_for_lambda.name, aws_iam_role.iam_for_transcribe.name]
   policy_arn = aws_iam_policy.s3.arn
 }
 
 resource "aws_iam_policy_attachment" "transcribe" {
-  name = "autotranscribe-lambda-s3"
+  name       = "autotranscribe-lambda-s3"
   roles      = [aws_iam_role.iam_for_lambda.name]
   policy_arn = aws_iam_policy.transcribe.arn
 }
 
 resource "aws_iam_policy_attachment" "logging" {
-  name = "autotranscribe-lambda-s3"
+  name       = "autotranscribe-lambda-s3"
   roles      = [aws_iam_role.iam_for_lambda.name]
   policy_arn = aws_iam_policy.logging.arn
 }
